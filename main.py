@@ -1,11 +1,10 @@
 import json
-import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.figure
 import matplotlib.dates as dt
 import PySimpleGUI as sg
-import numpy as np
 import webbrowser
+import fetch
+import os
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
@@ -45,6 +44,7 @@ def click(event, ax, sc, activities):
             window["-ACTIVITY-"].SetTooltip("Click to open Strava")
             window["-ACTIVITY-"].set_cursor("based_arrow_up")
 
+
 def fieldSelect(field, obj,ignoreNone=True):
     val = obj.get(field)
     if(type(val) is object or type(val) is dict):
@@ -53,13 +53,9 @@ def fieldSelect(field, obj,ignoreNone=True):
         return 0
     else:
         return val
-    
-def updatePlot(fields, currentSport, display_type):
-    fig = make_plot(fields, currentSport, display_type)
-    draw_figure_w_toolbar(window["-CANVAS-"].TKCanvas, fig, window["-TOOLBAR-"].TKCanvas)
 
 
-def make_plot(fields, activities, display_type):
+def updatePlot(fields, currentSport, dates_conv, display_type):
     plt.figure(1)
     plt.clf()
     ax = plt.axes()
@@ -72,7 +68,7 @@ def make_plot(fields, activities, display_type):
     fig.subplots_adjust(right=1.0 - (len(fields)) * 0.05)
     
     for i in range(len(fields)):
-        values = list(map(lambda obj: fieldSelect(fields[i],  obj), activities))
+        values = list(map(lambda obj: fieldSelect(fields[i],  obj), currentSport))
         color = plot_colors[i]
         if i > 0:
             axi = ax.twinx()
@@ -82,7 +78,7 @@ def make_plot(fields, activities, display_type):
         axi.yaxis.label.set_color(color)
         axi.tick_params(axis="y", colors=color)
         if display_type == 0:
-            values = list(map(lambda obj: fieldSelect(fields[i],  obj, ignoreNone=False), activities))
+            values = list(map(lambda obj: fieldSelect(fields[i],  obj, ignoreNone=False), currentSport))
             sc = axi.bar(dates_conv, values, color=color,width=1)
             axi.xaxis_date()
         elif display_type == 1:
@@ -91,14 +87,25 @@ def make_plot(fields, activities, display_type):
         elif display_type == 2:
             sc, = axi.plot_date(dates_conv, values, fmt="-", color=color)
             fig.autofmt_xdate()
-        fig.canvas.mpl_connect("button_press_event", lambda e: click(e, axi, sc, activities))
-    return fig
+        fig.canvas.mpl_connect("button_press_event", lambda e: click(e, axi, sc, currentSport))
+    draw_figure_w_toolbar(window["-CANVAS-"].TKCanvas, fig, window["-TOOLBAR-"].TKCanvas)
+
+
+def updateActivitesInPlot(fields, activities, sport_type, display_type):
+    currentSport = list(filter(lambda obj: obj['type'] == sport_type, activities))
+    dates_conv = dt.date2num(list(map(lambda obj: obj['start_date'], currentSport)))
+    updatePlot(fields, currentSport,dates_conv, display_type)
+    return currentSport,dates_conv
+
 
 
 bold_font = ("Arial", 12, "bold underline")
 plot_colors = ["#1c5d99","#b75d69","#00cc99","#F56E2A", "#ffee88","#40bcd8","#462255"]
 
 key_list_column= [
+    [
+        sg.Button("Update Activities", key="-FETCH-", expand_x=True, pad=(0,30))
+    ],
     [
         sg.Radio("Bike",key="-BIKE-" , group_id=1, default=True, enable_events=True),
         sg.Radio("Run",key="-RUN-", group_id=1, enable_events=True),
@@ -148,8 +155,9 @@ layout = [
 
 if __name__ == "__main__":
     global window
-    global dates_conv
     
+    if not os.path.isfile("activities.json"):
+        activities = fetch.updateLocalActivities()
     file = open("activities.json")
     activities = json.load(file)
     currentSport = list(filter(lambda obj: obj['type'] == "Ride", activities))
@@ -162,12 +170,12 @@ if __name__ == "__main__":
     display_type = 1
     fields = ["distance"]
     window["-KEY LIST-"].update(set_to_index = 3)
-    fig = make_plot(fields, currentSport, display_type)
-    draw_figure_w_toolbar(window["-CANVAS-"].TKCanvas, fig, window["-TOOLBAR-"].TKCanvas)
+    updatePlot(fields,currentSport, dates_conv, display_type)
 
     while True: 
         event, values = window.read()
         if event == "Exit" or event == sg.WINDOW_CLOSED:
+            file.close()
             break
         elif event == "-KEY LIST-":
             fields = values["-KEY LIST-"]
@@ -175,35 +183,34 @@ if __name__ == "__main__":
                 window["-KEY LIST-"].update(set_to_index = 3)
                 fields = ["distance"]
             window["-DATA-"].update(fields)
-            updatePlot(fields, currentSport, display_type)
+            updatePlot(fields, currentSport, dates_conv, display_type)
         elif event == "-BARS-":
             display_type = 0
-            updatePlot(fields, currentSport, display_type)
+            updatePlot(fields, currentSport, dates_conv, display_type)
         elif event == "-SCATTER-":
             display_type = 1
-            updatePlot(fields, currentSport, display_type)
+            updatePlot(fields, currentSport, dates_conv, display_type)
         elif event == "-LINE-":
             display_type = 2
-            updatePlot(fields, currentSport, display_type)
+            updatePlot(fields, currentSport, dates_conv, display_type)
         elif event == "-ACTIVITY-":
             id = window["-ACTIVITY-"].get().split(" ")[0]
             if id != "":
                 webbrowser.open("www.strava.com/activities/" + id)
         elif event == "-BIKE-":
-            currentSport = list(filter(lambda obj: obj['type'] == "Ride", activities))
-            dates_conv = dt.date2num(list(map(lambda obj: obj['start_date'], currentSport)))
-            updatePlot(fields, currentSport, display_type)
+            currentSport,dates_conv = updateActivitesInPlot(fields, activities, "Ride", display_type)
         elif event == "-RUN-":
-            currentSport = list(filter(lambda obj: obj['type'] == "Run", activities))
-            dates_conv = dt.date2num(list(map(lambda obj: obj['start_date'], currentSport)))
-            updatePlot(fields, currentSport, display_type)
+            currentSport,dates_conv = updateActivitesInPlot(fields, activities, "Run", display_type)
         elif event == "-SWIM-":
-            currentSport = list(filter(lambda obj: obj['type'] == "Swim", activities))
-            dates_conv = dt.date2num(list(map(lambda obj: obj['start_date'], currentSport)))
-            updatePlot(fields, currentSport, display_type)
+            currentSport,dates_conv = updateActivitesInPlot(fields, activities, "Swim", display_type)
         elif event == "-CLEAR-":
             window["-KEY LIST-"].update(set_to_index = 3)
             fields = ["distance"]
             window["-DATA-"].update(fields)
-            updatePlot(fields, currentSport, display_type)
+            updatePlot(fields, currentSport, dates_conv, display_type)
+        elif event == "-FETCH-":
+            activities = fetch.updateLocalActivities()
+            currentSport,dates_conv = updateActivitesInPlot(fields, activities, "Ride", display_type)
+            window["-BIKE-"].reset_group()
+            window["-BIKE-"].update(True)
     window.close()

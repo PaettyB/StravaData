@@ -1,14 +1,23 @@
 import requests
 import json
 import time
+import os
 
 tokenfile = "tokens.json"
 credentialsFile = "credentials.json"
 activitiesFile = "activities.json"
 
-tokens = json.load(open(tokenfile))
-credentials = json.load(open(credentialsFile))
-localActivities:list = json.load(open(activitiesFile))
+def init():
+    global tokens
+    global credentials
+    global localActivities
+    tokens = json.load(open(tokenfile))
+    credentials = json.load(open(credentialsFile))
+    localActivities =  []
+    if os.path.isfile(activitiesFile):
+        localActivities = json.load(open(activitiesFile))
+    
+
 
 def refreshTokens():
     body = {
@@ -53,12 +62,17 @@ def fetchActivities(page, per_page=100):
     return fetched
 
 def updateLocalActivities():
-    lastLocalID = localActivities[0]["id"]
+    init()
+    lastLocalID = 0
+    if len(localActivities) > 0:
+        lastLocalID = localActivities[0]["id"]
     activitiesToAdd = []
     page = 1
     finished = False
     while not finished:
-        batch = fetchActivities(page, 50)
+        batch = fetchActivities(page)
+        if len(batch) <= 0:
+            break
         for b in batch:
             if b["id"] == lastLocalID:
                 finished = True
@@ -73,14 +87,17 @@ def updateLocalActivities():
     
     json.dump(localActivities, open(activitiesFile, "w"))
     print("DONE")
+    return localActivities
 
 def removeLocalActivities(num):
+    init()
     for i in range(num):
         rem = localActivities.pop(0)
         print(rem["id"])
     json.dump(localActivities, open(activitiesFile, "w"))
 
 if __name__ == "__main__":
+    print("TEEST")
     updateLocalActivities()
 
 
