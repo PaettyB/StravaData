@@ -4,14 +4,19 @@ import PySimpleGUI as sg
 import webbrowser
 import fetch
 import os
-import sys
 import plotter
+import register
 
 bold_font = ("Arial", 12, "bold underline")
 
 key_list_column= [
     [
         sg.Button("Update Activities", key="-FETCH-", expand_x=True, pad=(0,30))
+    ],
+    [
+        sg.Push(),
+        sg.Button("Logout", key = "-LOGOUT-"),
+        sg.Push()
     ],
     [
         sg.Radio("Bike",key="-BIKE-" , group_id=1, default=True, enable_events=True),
@@ -60,11 +65,15 @@ layout = [
     ]
 ]
 
+
+
 if __name__ == "__main__":
+    if not os.path.isfile("tokens.json"):
+        register.register()
+    
     if not os.path.isfile("activities.json"):
         activities = fetch.updateLocalActivities()
-    file = open("activities.json")
-    activities = json.load(file)
+    activities = json.load(open("activities.json"))
     currentSport = list(filter(lambda obj: obj['type'] == "Ride", activities))
     dates = list(map(lambda obj: obj['start_date'], currentSport))
     dates_conv = dt.date2num(dates)
@@ -73,7 +82,8 @@ if __name__ == "__main__":
     
     plotter.setWindow(window)
     
-    window["-KEY LIST-"].update(values = list(currentSport[0].keys()))
+    if(len(currentSport) > 0):
+        window["-KEY LIST-"].update(values = list(currentSport[0].keys()))
     figure_canvas_agg = None
     display_type = 1
     fields = ["distance"]
@@ -83,7 +93,6 @@ if __name__ == "__main__":
     while True: 
         event, values = window.read()
         if event == "Exit" or event == sg.WINDOW_CLOSED:
-            file.close()
             break
         elif event == "-KEY LIST-":
             fields = values["-KEY LIST-"]
@@ -121,4 +130,8 @@ if __name__ == "__main__":
             currentSport,dates_conv = plotter.updateActivitesInPlot(fields, activities, "Ride", display_type)
             window["-BIKE-"].reset_group()
             window["-BIKE-"].update(True)
+        elif event == "-LOGOUT-":
+            os.remove("tokens.json")
+            os.remove("activities.json")
+            break
     window.close()

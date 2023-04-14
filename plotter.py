@@ -57,7 +57,7 @@ def fieldSelect(field, obj,ignoreNone=True):
 def updatePlot(fields, currentSport, dates_conv, display_type):
     plt.figure(1)
     plt.clf()
-    ax = plt.axes()
+    ax = plt.axes() 
     axi = ax
     fig = plt.gcf()
     DPI = fig.get_dpi()
@@ -94,4 +94,9 @@ def updateActivitesInPlot(fields, activities, sport_type, display_type):
     currentSport = list(filter(lambda obj: obj['type'] == sport_type, activities))
     dates_conv = dt.date2num(list(map(lambda obj: obj['start_date'], currentSport)))
     updatePlot(fields, currentSport,dates_conv, display_type)
+    if len(currentSport) > 0 :
+        window["-KEY LIST-"].update(list(currentSport[0].keys()))
+    else:
+        window["-KEY LIST-"].update([])
+        
     return currentSport,dates_conv
