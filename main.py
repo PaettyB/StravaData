@@ -6,10 +6,14 @@ import fetch
 import os
 import plotter
 import register
+import sys
 
 bold_font = ("Arial", 12, "bold underline")
 
 key_list_column= [
+    [
+        sg.Text("Offline Mode", key="-OFFLINE-", font=bold_font, visible=False)
+    ],
     [
         sg.Button("Update Activities", key="-FETCH-", expand_x=True, pad=(0,30))
     ],
@@ -68,12 +72,31 @@ layout = [
 
 
 if __name__ == "__main__":
-    if not os.path.isfile("tokens.json"):
-        register.register()
+    global config
+    config = json.load(open("config.json"))
+
+    if not os.path.isfile(config["credentialsFile"]) and not os.path.isfile(config["activitiesFile"]):
+        if not register.inputCredentials():
+            sys.exit()
+        config = json.load(open("config.json"))
     
-    if not os.path.isfile("activities.json"):
-        activities = fetch.updateLocalActivities()
-    activities = json.load(open("activities.json"))
+    if not config["OfflineMode"]:
+        if not os.path.isfile(config["tokenFile"]):
+            if not register.register():
+                sys.exit()
+        if not os.path.isfile(config["activitiesFile"]):
+            activities = fetch.updateLocalActivities()
+    else:
+        if not os.path.isfile(config["activitiesFile"]):
+            if not register.inputCredentials():
+                sys.exit()
+            config = json.load(open("config.json"))
+
+
+
+    
+
+    activities = json.load(open(config["activitiesFile"]))
     currentSport = list(filter(lambda obj: obj['type'] == "Ride", activities))
     dates = list(map(lambda obj: obj['start_date'], currentSport))
     dates_conv = dt.date2num(dates)
@@ -82,6 +105,12 @@ if __name__ == "__main__":
     
     plotter.setWindow(window)
     
+    if config["OfflineMode"]:
+        window["-FETCH-"].update(visible=False)
+        window["-LOGOUT-"].update(visible=False)
+        window["-OFFLINE-"].update(visible=True)
+
+
     if(len(currentSport) > 0):
         window["-KEY LIST-"].update(values = list(currentSport[0].keys()))
     figure_canvas_agg = None
@@ -131,7 +160,7 @@ if __name__ == "__main__":
             window["-BIKE-"].reset_group()
             window["-BIKE-"].update(True)
         elif event == "-LOGOUT-":
-            os.remove("tokens.json")
-            os.remove("activities.json")
+            os.remove(config["tokenFile"])
+            os.remove(config["activitiesFile"])
             break
     window.close()

@@ -3,19 +3,18 @@ import json
 import time
 import os
 
-tokenfile = "tokens.json"
-credentialsFile = "credentials.json"
-activitiesFile = "activities.json"
 
 def init():
     global tokens
     global credentials
     global localActivities
-    tokens = json.load(open(tokenfile))
-    credentials = json.load(open(credentialsFile))
+    global config
+    config = json.load(open("config.json"))
+    tokens = json.load(open(config["tokenFile"]))
+    credentials = json.load(open(config["credentialsFile"]))
     localActivities =  []
-    if os.path.isfile(activitiesFile):
-        localActivities = json.load(open(activitiesFile))
+    if os.path.isfile(config["activitiesFile"]):
+        localActivities = json.load(open(config["activitiesFile"]))
     
 
 
@@ -44,7 +43,7 @@ def getAccessToken():
             print("ERROR: Could not refresh tokens")
             return None
         print("New Token: " + tokenResponse["access_token"])
-        json.dump(tokenResponse, open(tokenfile, mode="w"))
+        json.dump(tokenResponse, open(config["tokenFile"], mode="w"))
         tokens = tokenResponse
         return tokens["access_token"]
     else:
@@ -85,7 +84,7 @@ def updateLocalActivities():
         print(" -"+str(i["id"]))
         localActivities.insert(0, i)
     
-    json.dump(localActivities, open(activitiesFile, "w"))
+    json.dump(localActivities, open(config["activitiesFile"], "w"))
     print("DONE")
     return localActivities
 
@@ -94,7 +93,7 @@ def removeLocalActivities(num):
     for i in range(num):
         rem = localActivities.pop(0)
         print(rem["id"])
-    json.dump(localActivities, open(activitiesFile, "w"))
+    json.dump(localActivities, open(config["activitiesFile"], "w"))
 
 if __name__ == "__main__":
     print("TEEST")
