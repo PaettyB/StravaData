@@ -95,8 +95,5 @@ def removeLocalActivities(num):
         print(rem["id"])
     json.dump(localActivities, open(config["activitiesFile"], "w"))
 
-if __name__ == "__main__":
-    print("TEEST")
-    updateLocalActivities()
 
 

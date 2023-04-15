@@ -93,9 +93,6 @@ if __name__ == "__main__":
             config = json.load(open("config.json"))
 
 
-
-    
-
     activities = json.load(open(config["activitiesFile"]))
     currentSport = list(filter(lambda obj: obj['type'] == "Ride", activities))
     dates = list(map(lambda obj: obj['start_date'], currentSport))

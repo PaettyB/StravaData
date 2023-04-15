@@ -78,7 +78,7 @@ def updatePlot(fields, currentSport, dates_conv, display_type):
         axi.tick_params(axis="y", colors=color)
         if display_type == 0:
             values = list(map(lambda obj: fieldSelect(fields[i],  obj, ignoreNone=False), currentSport))
-            sc = axi.bar(dates_conv, values, color=color,width=1)
+            sc = axi.bar(dates_conv, values, color=color,width=2)
             axi.xaxis_date()
         elif display_type == 1:
             sc, = axi.plot_date(dates_conv, values, fmt=".", color=color)
